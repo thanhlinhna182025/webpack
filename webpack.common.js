@@ -1,9 +1,19 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const CopyPlugin = require('copy-webpack-plugin');
 const webpack = require('webpack');
+const fs = require('fs');
+const ImageMinimizerPlugin = require('image-minimizer-webpack-plugin');
+const { extendDefaultPlugins } = require('svgo');
 module.exports = {
     entry: {
         index: './src/index.js',
+    },
+    resolve: {
+        modules: ['./node_modules'],
+        fallback: {
+            fs: false,
+        },
     },
     plugins: [
         new webpack.ProvidePlugin({
@@ -11,17 +21,25 @@ module.exports = {
             jQuery: 'jquery',
         }),
         new HtmlWebpackPlugin({
-            title: 'Webpack từ A đến Á cùng kentrung',
             filename: 'index.html',
             template: './src/index.html',
         }),
+        new CopyPlugin({
+            patterns: [
+                {
+                    from: 'src/assets',
+                    to: 'assets',
+                },
+            ],
+        }),
     ],
     output: {
-        filename: 'main.[hash].js',
+        filename: '[name][contenthash].js',
         path: path.resolve(__dirname, 'dist'),
+        publicPath: '/',
         clean: true,
     },
-    watch: true,
+    // watch: true,
     module: {
         rules: [
             {
@@ -45,16 +63,51 @@ module.exports = {
                 ],
             },
             {
-                test: /\.(png|svg|jpg|jpeg|gif)$/i,
+                test: /\.(png|jpg|jpeg|gif|tiff|bmp|svg)$/i,
+                include: [path.resolve(__dirname, './src/assets/images')],
                 type: 'asset/resource',
-                generator: {
-                    filename: 'images/[contenthash][ext][query]',
-                },
             },
             {
                 test: /\.(woff|woff2|eot|ttf|otf)$/i,
                 type: 'asset/resource',
             },
+        ],
+    },
+    optimization: {
+        minimizer: [
+            new ImageMinimizerPlugin({
+                minimizer: {
+                    implementation: ImageMinimizerPlugin.imageminMinify,
+                    options: {
+                        // Lossless optimization with custom option
+                        // Feel free to experiment with options for better result for you
+                        plugins: [
+                            ['gifsicle', { interlaced: true }],
+                            ['jpegtran', { progressive: true }],
+                            ['optipng', { optimizationLevel: 5 }],
+                            // Svgo configuration here https://github.com/svg/svgo#configuration
+                            [
+                                'svgo',
+                                {
+                                    plugins: {
+                                        name: 'preset-default',
+                                        params: {
+                                            overrides: {
+                                                // customize plugin options
+                                                convertShapeToPath: {
+                                                    convertArcs: true,
+                                                },
+                                                // disable plugins
+                                                convertPathData: false,
+                                            },
+                                        },
+                                    },
+                                },
+                            ],
+                        ],
+                    },
+                },
+            }),
         ],
     },
 };
